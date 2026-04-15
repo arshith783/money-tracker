@@ -20,7 +20,8 @@ function App() {
 
   useEffect(() => {
   getTransactions();
-}, [getTransactions]);
+  // eslint-disable-next-line
+}, []);
 
   // Add data
   const addTransaction = async () => {

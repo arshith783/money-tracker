@@ -19,8 +19,8 @@ function App() {
   };
 
   useEffect(() => {
-    getTransactions();
-  }, []);
+  getTransactions();
+}, [getTransactions]);
 
   // Add data
   const addTransaction = async () => {

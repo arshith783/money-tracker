@@ -15,6 +15,7 @@ import {
   onAuthStateChanged,
   signOut,
 } from "firebase/auth";
+import { deleteDoc } from "firebase/firestore";
 
 function App() {
   const [name, setName] = useState("");
@@ -121,94 +122,259 @@ function App() {
     alert("Logged out");
   };
 
+  const totalAmount = transactions.reduce(
+  (sum, t) => sum + Number(t.amount || 0),
+  0
+);
+
+const deleteTransaction = async (id) => {
+  const transactionDoc = doc(db, "transactions", id);
+  await deleteDoc(transactionDoc);
+  getTransactions();
+};
+
+const totalPending = transactions
+  .filter((t) => !t.paid)
+  .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+const totalPaid = transactions
+  .filter((t) => t.paid)
+  .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Money Lending Tracker 💰</h1>
+  <div
+    style={{
+      maxWidth: "600px",
+      margin: "auto",
+      padding: "20px",
+      fontFamily: "Arial",
+    }}
+  >
+    <h1
+  style={{
+    textAlign: "center",
+    color: "#333",
+    marginBottom: "20px",
+  }}
+>
+  AK Finance 💰
+</h1>
+    <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: "20px",
+  }}
+>
+  <div
+    style={{
+      flex: 1,
+      margin: "5px",
+      padding: "15px",
+      background: "#f0f8ff",
+      borderRadius: "10px",
+      textAlign: "center",
+    }}
+  >
+    <h3>Total</h3>
+    <p>₹{totalAmount}</p>
+  </div>
 
-      {/* FILTER */}
-      <div style={{ marginBottom: "10px" }}>
-        <button onClick={() => setFilter("all")}>All</button>
-        <button onClick={() => setFilter("paid")}>Paid</button>
-        <button onClick={() => setFilter("pending")}>Pending</button>
+  <div
+    style={{
+      flex: 1,
+      margin: "5px",
+      padding: "15px",
+      background: "#fff3cd",
+      borderRadius: "10px",
+      textAlign: "center",
+    }}
+  >
+    <h3>Pending</h3>
+    <p>₹{totalPending}</p>
+  </div>
+
+  <div
+    style={{
+      flex: 1,
+      margin: "5px",
+      padding: "15px",
+      background: "#d4edda",
+      borderRadius: "10px",
+      textAlign: "center",
+    }}
+  >
+    <h3>Paid</h3>
+    <p>₹{totalPaid}</p>
+  </div>
+</div>
+
+    {/* AUTH */}
+    {!user ? (
+      <div style={{ marginBottom: "20px" }}>
+        <input
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ marginRight: "10px", padding: "8px" }}
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ marginRight: "10px", padding: "8px" }}
+        />
+
+        <button onClick={signup} style={{ marginRight: "10px" }}>
+          Sign Up
+        </button>
+        <button onClick={login}>Login</button>
       </div>
+    ) : (
+      <div style={{ marginBottom: "20px" }}>
+        <p>Welcome: {user.email}</p>
+        <button onClick={logout}>Logout</button>
+      </div>
+    )}
 
-      {/* 🔐 AUTH SECTION */}
-      {!user ? (
-        <>
-          <input
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+    {/* ADD FORM */}
+    <div style={{ marginBottom: "20px" }}>
+      <div
+  style={{
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "10px",
+    marginBottom: "15px",
+  }}
+>
+  <input
+    placeholder="Name"
+    value={name}
+    onChange={(e) => setName(e.target.value)}
+    style={{ flex: "1 1 45%", padding: "8px" }}
+  />
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+  <input
+    placeholder="Amount"
+    value={amount}
+    onChange={(e) => setAmount(e.target.value)}
+    style={{ flex: "1 1 45%", padding: "8px" }}
+  />
 
-          <button onClick={signup}>Sign Up</button>
-          <button onClick={login}>Login</button>
-        </>
-      ) : (
-        <>
-          <p>Welcome: {user.email}</p>
-          <button onClick={logout}>Logout</button>
-        </>
+  <input
+    type="date"
+    value={dueDate}
+    onChange={(e) => setDueDate(e.target.value)}
+    style={{ flex: "1 1 45%", padding: "8px" }}
+  />
+
+  <input
+    placeholder="Interest %"
+    value={interest}
+    onChange={(e) => setInterest(e.target.value)}
+    style={{ flex: "1 1 45%", padding: "8px" }}
+  />
+</div>
+
+      <button
+  onClick={addTransaction}
+  style={{
+    padding: "8px 15px",
+    borderRadius: "5px",
+    border: "none",
+    background: "#007bff",
+    color: "white",
+    cursor: "pointer",
+  }}
+>
+  Add
+  
+</button>
+    </div>
+
+    {/* FILTER */}
+    <div style={{ marginBottom: "20px" }}>
+      <button onClick={() => setFilter("all")}>All</button>
+      <button onClick={() => setFilter("paid")} style={{ marginLeft: "10px" }}>
+        Paid
+      </button>
+      <button
+        onClick={() => setFilter("pending")}
+        style={{ marginLeft: "10px" }}
+      >
+        Pending
+      </button>
+    </div>
+
+    {/* TRANSACTIONS */}
+    <h2>Transactions</h2>
+
+    {transactions
+      .filter((t) => {
+        if (filter === "paid") return t.paid;
+        if (filter === "pending") return !t.paid;
+        return true;
+      })
+      .map((t) => {
+  const isOverdue =
+    !t.paid && t.dueDate && new Date(t.dueDate) < new Date();
+
+  return (
+    <div
+      key={t.id}
+      style={{
+        borderRadius: "10px",
+        padding: "15px",
+        marginBottom: "10px",
+        boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+        background: isOverdue
+          ? "#ffcccc"
+          : t.paid
+          ? "#d4edda"
+          : "#fff3cd",
+      }}
+    >
+      <strong>{t.name}</strong> — ₹{t.amount}
+      <br />
+      Interest: {t.interest}% | Total: ₹
+      {(
+        Number(t.amount) *
+        (1 + Number(t.interest || 0) / 100)
+      ).toFixed(2)}
+      <br />
+      Due: {t.dueDate}
+      <br />
+      Status: {t.paid ? "✅ Paid" : "⏳ Pending"}
+
+      {isOverdue && (
+        <p style={{ color: "red", fontWeight: "bold" }}>
+          ⚠️ Overdue
+        </p>
       )}
 
-      <hr />
+      <button onClick={() => markPaid(t.id)}>Mark Paid</button>
 
-      {/* ➕ ADD TRANSACTION */}
-      <input
-        placeholder="Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-
-      <input
-        placeholder="Amount"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-      />
-
-      <input
-        type="date"
-        value={dueDate}
-        onChange={(e) => setDueDate(e.target.value)}
-      />
-
-      <input
-        placeholder="Interest %"
-        value={interest}
-        onChange={(e) => setInterest(e.target.value)}
-      />
-
-      <button onClick={addTransaction}>Add</button>
-
-      <h2>Transactions</h2>
-
-      {transactions
-        .filter((t) => {
-          if (filter === "paid") return t.paid;
-          if (filter === "pending") return !t.paid;
-          return true;
-        })
-        .map((t) => (
-          <div key={t.id}>
-            {t.name} - ₹{t.amount} - Interest: {t.interest}% - Total: ₹
-            {(
-              Number(t.amount) *
-              (1 + Number(t.interest || 0) / 100)
-            ).toFixed(2)}{" "}
-            - Due: {t.dueDate} - {t.paid ? "Paid" : "Pending"}
-
-            <button onClick={() => markPaid(t.id)}>Mark Paid</button>
-          </div>
-        ))}
+      <button
+        onClick={() => deleteTransaction(t.id)}
+        style={{
+          marginLeft: "10px",
+          background: "red",
+          color: "white",
+          border: "none",
+          padding: "5px 10px",
+          borderRadius: "5px",
+        }}
+      >
+        Delete
+      </button>
     </div>
   );
+})}
+  </div>
+  
+);
 }
 
 export default App;

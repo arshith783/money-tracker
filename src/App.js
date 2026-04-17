@@ -16,6 +16,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { deleteDoc } from "firebase/firestore";
+import { PieChart, Pie, Cell, Tooltip } from "recharts";
 
 function App() {
   const [name, setName] = useState("");
@@ -133,6 +134,35 @@ const deleteTransaction = async (id) => {
   getTransactions();
 };
 
+const startEdit = (t) => {
+  setName(t.name);
+  setAmount(t.amount);
+  setInterest(t.interest);
+  setDueDate(t.dueDate);
+  setEditId(t.id);
+};
+
+const updateTransaction = async () => {
+  if (!editId) return;
+
+  const transactionDoc = doc(db, "transactions", editId);
+
+  await updateDoc(transactionDoc, {
+    name,
+    amount,
+    interest,
+    dueDate,
+  });
+
+  setEditId(null);
+  setName("");
+  setAmount("");
+  setInterest("");
+  setDueDate("");
+
+  getTransactions();
+};
+
 const totalPending = transactions
   .filter((t) => !t.paid)
   .reduce((sum, t) => sum + Number(t.amount || 0), 0);
@@ -140,6 +170,14 @@ const totalPending = transactions
 const totalPaid = transactions
   .filter((t) => t.paid)
   .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+
+const chartData = [
+  { name: "Paid", value: totalPaid },
+  { name: "Pending", value: totalPending },
+];
+
+const [editId, setEditId] = useState(null);
 
   return (
   <div
@@ -238,6 +276,7 @@ const totalPaid = transactions
         <button onClick={logout}>Logout</button>
       </div>
     )}
+    
 
     {/* ADD FORM */}
     <div style={{ marginBottom: "20px" }}>
@@ -249,6 +288,7 @@ const totalPaid = transactions
     marginBottom: "15px",
   }}
 >
+  
   <input
     placeholder="Name"
     value={name}
@@ -279,19 +319,20 @@ const totalPaid = transactions
 </div>
 
       <button
-  onClick={addTransaction}
+  onClick={editId ? updateTransaction : addTransaction}
   style={{
     padding: "8px 15px",
     borderRadius: "5px",
     border: "none",
-    background: "#007bff",
+    background: editId ? "orange" : "#007bff",
     color: "white",
     cursor: "pointer",
   }}
 >
-  Add
-  
+  {editId ? "Update" : "Add"}
 </button>
+
+
     </div>
 
     {/* FILTER */}
@@ -336,6 +377,7 @@ const totalPaid = transactions
           : "#fff3cd",
       }}
     >
+      
       <strong>{t.name}</strong> — ₹{t.amount}
       <br />
       Interest: {t.interest}% | Total: ₹
@@ -369,6 +411,20 @@ const totalPaid = transactions
       >
         Delete
       </button>
+
+      <button
+  onClick={() => startEdit(t)}
+  style={{
+    marginLeft: "10px",
+    background: "orange",
+    color: "white",
+    border: "none",
+    padding: "5px 10px",
+    borderRadius: "5px",
+  }}
+>
+  Edit
+</button>
     </div>
   );
 })}
